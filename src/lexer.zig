@@ -1,7 +1,7 @@
 pub const TypeKind = enum {
-    int,
+    Int,
     Bool, //B is in Upper-case
-    string,
+    String,
 };
 
 pub const TokenTag = enum {
