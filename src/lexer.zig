@@ -1,5 +1,5 @@
 const std = @import("std");
-const print = std.debug.print();
+const print = std.debug.print;
 
 pub const TypeKind = enum {
     Int,
@@ -201,7 +201,7 @@ pub fn readString(self:*Lexer) []const u8
     {
         // ** should work on this
         return self.input[start..self.position];
-        //error did not put closing quote for the string
+        //error - did not put closing quote for the string
     }
     const string_slice: []const u8 = self.input[start..self.position];
     self.readChar(); // ignoring the closing quote
@@ -229,4 +229,198 @@ pub fn lookUpKeyword(word: []const u8) TokenPayload
     if (std.mem.eql(u8, word, "true")) return .{ .true_ = {} };
     if (std.mem.eql(u8, word, "false")) return .{ .false_ = {} };
     return .{ .identifier = word };
+}
+
+
+//main token loop function - 
+pub fn nextToken(self:*Lexer) Token
+{
+    // Whitespaces and comments - 
+    self.skipWhiteSpace();
+    if(self.ch == '/' and self.peekChar() == '/')
+    {
+        self.skipComment();
+        return self.nextToken();
+    }
+
+    const start_line:usize = self.line;
+    const start_col:usize = self.column;
+
+    // Symbols - 
+    if (self.ch == '(') 
+    {
+        self.readChar();
+        return Token{ .payload = .{ .lparen = {} }, .line = start_line, .column = start_col };
+    }
+    if (self.ch == ')') 
+    {
+        self.readChar();
+        return Token{ .payload = .{ .rparen = {} }, .line = start_line, .column = start_col };
+    }
+    if (self.ch == '{') 
+    {
+        self.readChar();
+        return Token{ .payload = .{ .lbrace = {} }, .line = start_line, .column = start_col };
+    }
+    if (self.ch == '}') 
+    {
+        self.readChar();
+        return Token{ .payload = .{ .rbrace = {} }, .line = start_line, .column = start_col };
+    }
+    if (self.ch == '[') 
+    {
+        self.readChar();
+        return Token{ .payload = .{ .lbracket = {} }, .line = start_line, .column = start_col };
+    }
+    if (self.ch == ']') 
+    {
+        self.readChar();
+        return Token{ .payload = .{ .rbracket = {} }, .line = start_line, .column = start_col };
+    }
+    if (self.ch == ',') 
+    {
+        self.readChar();
+        return Token{ .payload = .{ .comma = {} }, .line = start_line, .column = start_col };
+    }
+    if (self.ch == ';') 
+    {
+        self.readChar();
+        return Token{ .payload = .{ .semicolon = {} }, .line = start_line, .column = start_col };
+    }
+    if (self.ch == ':') 
+    {
+        self.readChar();
+        return Token{ .payload = .{ .colon = {} }, .line = start_line, .column = start_col };
+    }
+
+    // Operators -
+    if(self.ch == '=')
+    {
+        if(self.peekChar() == '=')
+        {
+            self.readChar();
+            self.readChar();
+            return Token{.payload = .{.equality = {}}, .line = start_line, .column = start_col};
+        }
+        self.readChar();
+        return Token{.payload = .{.equal = {}}, .line = start_line, .column = start_col};
+    }
+    if(self.ch == '+')
+    {
+        if(self.peekChar() == '=')
+        {
+            self.readChar();
+            self.readChar();
+            return Token{.payload = .{.plus_equal = {}}, .line = start_line, .column = start_col};
+        }
+        self.readChar();
+        return Token{.payload = .{.plus = {}}, .line = start_line, .column = start_col};
+    }
+    if(self.ch == '-')
+    {
+        if(self.peekChar() == '=')
+        {
+            self.readChar();
+            self.readChar();
+            return Token{.payload = .{.minus_equal = {}}, .line = start_line, .column = start_col};
+        }
+        self.readChar();
+        return Token{.payload = .{.minus = {}}, .line = start_line, .column = start_col};
+    }
+    if(self.ch == '*')
+    {
+        if(self.peekChar() == '=')
+        {
+            self.readChar();
+            self.readChar();
+            return Token{.payload = .{.star_equal = {}}, .line = start_line, .column = start_col};
+        }
+        self.readChar();
+        return Token{.payload = .{.star = {}}, .line = start_line, .column = start_col};
+    }
+    if(self.ch == '/')
+    {
+        if(self.peekChar() == '=')
+        {
+            self.readChar();
+            self.readChar();
+            return Token{.payload = .{.slash_equal = {}}, .line = start_line, .column = start_col};
+        }
+        self.readChar();
+        return Token{.payload = .{.slash = {}}, .line = start_line, .column = start_col};
+    }
+    if(self.ch == '%')
+    {
+        if(self.peekChar() == '=')
+        {
+            self.readChar();
+            self.readChar();
+            return Token{.payload = .{.mod_equal = {}}, .line = start_line, .column = start_col};
+        }
+        self.readChar();
+        return Token{.payload = .{.mod = {}}, .line = start_line, .column = start_col};
+    }
+    if(self.ch == '/')
+    {
+        if(self.peekChar() == '=')
+        {
+            self.readChar();
+            self.readChar();
+            return Token{.payload = .{.slash_equal = {}}, .line = start_line, .column = start_col};
+        }
+        self.readChar();
+        return Token{.payload = .{.slash = {}}, .line = start_line, .column = start_col};
+    }
+    if(self.ch == '!' and self.peekChar() == '=')
+    {
+        self.readChar();
+        self.readChar();
+        return Token{.payload = .{.inequality = {}}, .line = start_line, .column = start_col};
+    }
+    if(self.ch == '<')
+    {
+        if(self.peekChar() == '=')
+        {
+            self.readChar();
+            self.readChar();
+            return Token{.payload = .{.lessthan_equal = {}}, .line = start_line, .column = start_col};
+        }
+        self.readChar();
+        return Token{.payload = .{.lessthan = {}}, .line = start_line, .column = start_col};
+    }
+    if(self.ch == '>')
+    {
+        if(self.peekChar() == '=')
+        {
+            self.readChar();
+            self.readChar();
+            return Token{.payload = .{.greaterthan_equal = {}}, .line = start_line, .column = start_col};
+        }
+        self.readChar();
+        return Token{.payload = .{.greaterthan = {}}, .line = start_line, .column = start_col};
+    }
+
+    // Identifiers, Numbers etc - 
+    if(self.ch == '"')
+    {
+        const stringValue:[]const u8 = self.readString();
+        return Token{.payload = .{.string = stringValue}, .line = start_line, .column = start_col};
+    }
+    if(isDigit(self.ch))
+    {
+        const numberValue:i64 = self.readNumber();
+        return Token{.payload = .{.number = numberValue}, .line = start_line, .column = start_col};
+    }
+    if(isAlpha(self.ch))
+    {
+        const wordValue:[]const u8 = self.readIdentifier();
+        const keyword_payload = lookUpKeyword(wordValue);
+        return Token{.payload = keyword_payload, .line = start_line, .column = start_col};
+    }
+    if(self.ch == 0)
+    {
+        return Token{.payload = .{.eof = {} }, .line = start_line, .column = start_col};
+    }
+    self.readChar();
+    return self.nextToken();
 }
