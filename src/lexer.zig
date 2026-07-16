@@ -105,6 +105,11 @@ pub const Lexer = struct {
     column: usize = 0,        // column number
 };
 
+pub fn init(input: []const u8) Lexer {
+    var l = Lexer{ .input = input };
+    l.readChar();
+    return l;
+}
 
 // Helper Functions - 
 pub fn readChar(self:*Lexer) void
@@ -232,7 +237,7 @@ pub fn lookUpKeyword(word: []const u8) TokenPayload
 }
 
 
-//main token loop function - 
+// main token loop function - 
 pub fn nextToken(self:*Lexer) Token
 {
     // Whitespaces and comments - 
@@ -360,17 +365,6 @@ pub fn nextToken(self:*Lexer) Token
         self.readChar();
         return Token{.payload = .{.mod = {}}, .line = start_line, .column = start_col};
     }
-    if(self.ch == '/')
-    {
-        if(self.peekChar() == '=')
-        {
-            self.readChar();
-            self.readChar();
-            return Token{.payload = .{.slash_equal = {}}, .line = start_line, .column = start_col};
-        }
-        self.readChar();
-        return Token{.payload = .{.slash = {}}, .line = start_line, .column = start_col};
-    }
     if(self.ch == '!' and self.peekChar() == '=')
     {
         self.readChar();
@@ -423,4 +417,14 @@ pub fn nextToken(self:*Lexer) Token
     }
     self.readChar();
     return self.nextToken();
+}
+
+pub fn lex(self:*Lexer, allocator: std.mem.Allocator) !std.ArrayList(Token) {
+    var tokens = std.ArrayList(Token).init(allocator);
+    while (true) {
+        const tok = self.nextToken();
+        try tokens.append(tok);
+        if (tok.payload == .eof) break;
+    }
+    return tokens;
 }
