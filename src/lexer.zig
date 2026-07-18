@@ -99,33 +99,34 @@ pub const Token = struct {
 pub const Lexer = struct {
     input: []const u8, // file content
     position: usize = 0, // current character position
-    read_position: usize = 0, // next character position
     ch: u8 = 0, // character at the current position
     line: usize = 1, // line number
     column: usize = 0, // column number
 
     pub fn init(input: []const u8) Lexer {
         var l = Lexer{ .input = input };
-        l.readChar();
+        if (input.len > 0) {
+            l.ch = input[0];
+            l.column = 1;
+        }
         return l;
     }
 
     // Helper Functions -
     pub fn readChar(self: *Lexer) void {
-        if (self.read_position >= self.input.len) {
+        if (self.position + 1 >= self.input.len) {
             self.ch = 0;
         } else {
-            self.ch = self.input[self.read_position];
+            self.ch = self.input[self.position + 1];
         }
-        self.position = self.read_position;
-        self.read_position += 1;
+        self.position += 1;
         self.column += 1;
     }
     pub fn peekChar(self: *Lexer) ?u8 {
-        if (self.read_position >= self.input.len) {
+        if (self.position + 1 >= self.input.len) {
             return 0;
         } else {
-            return self.input[self.read_position];
+            return self.input[self.position + 1];
         }
     }
     pub fn skipWhiteSpace(self: *Lexer) void {
@@ -177,17 +178,28 @@ pub const Lexer = struct {
         }
         return self.input[start..self.position];
     }
-    pub fn lookUpKeyword(word: []const u8) TokenPayload {
-        if (std.mem.eql(u8, word, "fn")) return .{ .func = {} };
-        if (std.mem.eql(u8, word, "int")) return .{ .type_ = .Int };
-        if (std.mem.eql(u8, word, "bool")) return .{ .type_ = .Bool };
-        if (std.mem.eql(u8, word, "string")) return .{ .type_ = .String };
-        if (std.mem.eql(u8, word, "if")) return .{ .if_ = {} };
-        if (std.mem.eql(u8, word, "else")) return .{ .else_ = {} };
-        if (std.mem.eql(u8, word, "while")) return .{ .while_ = {} };
-        if (std.mem.eql(u8, word, "return")) return .{ .return_ = {} };
-        if (std.mem.eql(u8, word, "true")) return .{ .true_ = {} };
-        if (std.mem.eql(u8, word, "false")) return .{ .false_ = {} };
+    pub fn lookUpKeyword(word: []const u8) TokenPayload 
+    {
+        const keywords = 
+        .{
+            .{ "fn", TokenPayload{ .func = {} } },
+            .{ "int", TokenPayload{ .type_ = .Int } },
+            .{ "bool", TokenPayload{ .type_ = .Bool } },
+            .{ "string", TokenPayload{ .type_ = .String } },
+            .{ "if", TokenPayload{ .if_ = {} } },
+            .{ "else", TokenPayload{ .else_ = {} } },
+            .{ "while", TokenPayload{ .while_ = {} } },
+            .{ "return", TokenPayload{ .return_ = {} } },
+            .{ "true", TokenPayload{ .true_ = {} } },
+            .{ "false", TokenPayload{ .false_ = {} } },
+        };
+
+        const map = std.StaticStringMap(TokenPayload).initComptime(keywords);
+
+        if (map.get(word)) |payload| 
+        {
+            return payload;
+        }
         return .{ .identifier = word };
     }
 
@@ -204,41 +216,45 @@ pub const Lexer = struct {
         const start_col: usize = self.column;
 
         // Symbols -
-        if (self.ch == '(') {
-            self.readChar();
-            return Token{ .payload = .{ .lparen = {} }, .line = start_line, .column = start_col };
-        }
-        if (self.ch == ')') {
-            self.readChar();
-            return Token{ .payload = .{ .rparen = {} }, .line = start_line, .column = start_col };
-        }
-        if (self.ch == '{') {
-            self.readChar();
-            return Token{ .payload = .{ .lbrace = {} }, .line = start_line, .column = start_col };
-        }
-        if (self.ch == '}') {
-            self.readChar();
-            return Token{ .payload = .{ .rbrace = {} }, .line = start_line, .column = start_col };
-        }
-        if (self.ch == '[') {
-            self.readChar();
-            return Token{ .payload = .{ .lbracket = {} }, .line = start_line, .column = start_col };
-        }
-        if (self.ch == ']') {
-            self.readChar();
-            return Token{ .payload = .{ .rbracket = {} }, .line = start_line, .column = start_col };
-        }
-        if (self.ch == ',') {
-            self.readChar();
-            return Token{ .payload = .{ .comma = {} }, .line = start_line, .column = start_col };
-        }
-        if (self.ch == ';') {
-            self.readChar();
-            return Token{ .payload = .{ .semicolon = {} }, .line = start_line, .column = start_col };
-        }
-        if (self.ch == ':') {
-            self.readChar();
-            return Token{ .payload = .{ .colon = {} }, .line = start_line, .column = start_col };
+        switch (self.ch)
+        {
+            '(' =>{
+                self.readChar();
+                return Token{ .payload = .{ .lparen = {} }, .line = start_line, .column = start_col };
+            },
+            ')' =>{
+                self.readChar();
+                return Token{ .payload = .{ .rparen = {} }, .line = start_line, .column = start_col };
+            },
+            '{' =>{
+                self.readChar();
+                return Token{ .payload = .{ .lbrace = {} }, .line = start_line, .column = start_col };
+            },
+            '}' =>{
+                self.readChar();
+                return Token{ .payload = .{ .rbrace = {} }, .line = start_line, .column = start_col };
+            },
+            '[' =>{
+                self.readChar();
+                return Token{ .payload = .{ .lbracket = {} }, .line = start_line, .column = start_col };
+            },
+            ']' =>{
+                self.readChar();
+                return Token{ .payload = .{ .rbracket = {} }, .line = start_line, .column = start_col };
+            },
+            ',' =>{
+                self.readChar();
+                return Token{ .payload = .{ .comma = {} }, .line = start_line, .column = start_col };
+            },
+            ';' =>{
+                self.readChar();
+                return Token{ .payload = .{ .semicolon = {} }, .line = start_line, .column = start_col };
+            },
+            ':' =>{
+                self.readChar();
+                return Token{ .payload = .{ .colon = {} }, .line = start_line, .column = start_col };
+            },
+            else => {},
         }
 
         // Operators -
