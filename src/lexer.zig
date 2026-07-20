@@ -237,8 +237,7 @@ pub const Lexer = struct {
             if (self.ch == 0)
             {
                 self.mode = lexerMode.normal_state;
-                print("Interpolation not closed", .{});
-                return Token{ .payload = .{ .eof = {}}, .line = start_line, .column = start_col };
+                return Token{ .payload = .{ .invalid = "Unterminated string literal" }, .line = start_line, .column = start_col };
             }
             else if(self.ch == '{')
             {
@@ -399,10 +398,10 @@ pub const Lexer = struct {
         if (self.ch == '"') {
             if (self.in_interpolation == true)
             {
-                print("Unterminated Interpolation\n", .{}); // error for unterminated interpolation
                 self.in_interpolation = false;
                 self.readChar();
-                return Token{ .payload = .{ .string_end = {} }, .line = start_line, .column = start_col };
+                self.mode = lexerMode.normal_state;
+                return Token{ .payload = .{ .invalid = "Unterminated interpolation - missing }" }, .line = start_line, .column = start_col };
             }
             else
             {
@@ -423,13 +422,10 @@ pub const Lexer = struct {
         if (self.ch == 0) {
             if (self.in_interpolation == true)
             {
-                print("Unterminated Interpolation\n", .{}); // error for unterminated interpolation
-                return Token{ .payload = .{ .eof = {} }, .line = start_line, .column = start_col };
+                self.in_interpolation = false;
+                return Token{ .payload = .{ .invalid = "Unterminated interpolation - missing }" }, .line = start_line, .column = start_col };
             }
-            else
-            {
-                return Token{ .payload = .{ .eof = {} }, .line = start_line, .column = start_col };
-            }
+            return Token{ .payload = .{ .eof = {} }, .line = start_line, .column = start_col };
         }
         const bad_char = self.input[self.position .. self.position + 1]; // slice bad byte from the input
         self.readChar();
