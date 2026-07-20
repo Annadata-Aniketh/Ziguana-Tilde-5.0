@@ -1,6 +1,7 @@
 const std = @import("std");
 const lexerMod = @import("lexer.zig");
 const fetcher = @import("fetcher.zig");
+const print = std.debug.print;
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
