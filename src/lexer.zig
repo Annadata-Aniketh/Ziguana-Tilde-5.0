@@ -123,6 +123,9 @@ pub const Lexer = struct {
     column: usize = 0, // column number
     mode: lexerMode = lexerMode.normal_state,
     in_interpolation: bool = false,
+    string_error: ?[]const u8 = null,
+    string_error_line: usize = 0,
+    string_error_column: usize = 0,
 
     pub fn init(input: []const u8) Lexer {
         var l = Lexer{ .input = input };
@@ -173,27 +176,52 @@ pub const Lexer = struct {
         const number_slice: []const u8 = self.input[start..self.position];
         return std.fmt.parseInt(i64, number_slice, 10) catch 0;
     }
-    pub fn readString(self: *Lexer) []const u8 {
+    pub fn readString(self: *Lexer) []const u8 
+    {
         const start: usize = self.position;
+
         while (self.ch != '"' and self.ch != 0 and self.ch != '{') {
-            if (self.ch == '\n') {
+            if (self.ch == '\n') 
+            {
+                self.string_error = "Newline in string literal";
+                self.string_error_line = self.line;
+                self.string_error_column = self.column;
+
                 self.line += 1;
                 self.column = 0;
-            }
-            if (self.ch == '\\')
-            {
                 self.readChar();
+
+                self.mode = lexerMode.normal_state;
+                return self.input[start..self.position];
             }
+
+            if (self.ch == '\\') 
+            {
+                const esc_line = self.line;
+                const esc_col = self.column;
+
+                self.readChar();
+
+                if (self.ch != 'n' and self.ch != 't' and self.ch != 'r' and self.ch != '"' and self.ch != '\\')
+                {
+                    self.string_error = "Invalid escape sequence";
+                    self.string_error_line = esc_line;
+                    self.string_error_column = esc_col;
+
+                    if (self.ch != 0) 
+                    {
+                        self.readChar();
+                    }
+
+                    self.mode = lexerMode.normal_state;
+                    return self.input[start..self.position];
+                }
+            }
+
             self.readChar();
         }
-        if (self.ch == 0) {
-            // ** should work on this
-            // return self.input[start..self.position];
-            //error - did not put closing quote for the string
-            return self.input[start..self.position];
-        }
-        const string_slice: []const u8 = self.input[start..self.position];
-        return string_slice;
+
+        return self.input[start..self.position];
     }
     pub fn readIdentifier(self: *Lexer) []const u8 {
         const start: usize = self.position;
@@ -228,12 +256,11 @@ pub const Lexer = struct {
 
     // main token loop function -
     pub fn nextToken(self: *Lexer) Token {
-        
-        const start_line: usize = self.line;
-        const start_col: usize = self.column;
 
         if (self.mode == lexerMode.string_state)
         {
+            const start_line: usize = self.line;
+            const start_col: usize = self.column;
             if (self.ch == 0)
             {
                 self.mode = lexerMode.normal_state;
@@ -252,13 +279,30 @@ pub const Lexer = struct {
                 self.mode = lexerMode.normal_state;
                 return Token{ .payload = .{ .string_end = {}}, .line = start_line, .column = start_col };
             }
-            else
+            else 
             {
-                return Token{ .payload = .{ .string_segment = self.readString()}, .line = start_line, .column = start_col };
+                const segment = self.readString();
+
+                if (self.string_error) |message| 
+                {
+                    const error_line = self.string_error_line;
+                    const error_column = self.string_error_column;
+
+                    self.string_error = null;
+                    self.string_error_line = 0;
+                    self.string_error_column = 0;
+
+                    return Token{.payload = .{ .invalid = message }, .line = error_line, .column = error_column,};
+                }
+
+                return Token{.payload = .{ .string_segment = segment }, .line = start_line, .column = start_col,};
             }
         }
         // Whitespaces and comments -
         self.skipWhiteSpace();
+        const start_line: usize = self.line;
+        const start_col: usize = self.column;
+
         if (self.ch == '/' and self.peekChar() == '/') {
             self.skipComment();
             return self.nextToken();
